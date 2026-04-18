@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: running-proxy
+spec:
+  type: LoadBalancer
+  selector:
+    app: running-proxy
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000

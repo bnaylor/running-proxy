@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: running-proxy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # Important for SQLite on NFS to avoid concurrent writers
+  selector:
+    matchLabels:
+      app: running-proxy
+  template:
+    metadata:
+      labels:
+        app: running-proxy
+    spec:
+      containers:
+      - name: running-proxy
+        image: running-proxy:latest # User will need to build/push
+        ports:
+        - containerPort: 8000
+        env:
+        - name: SPREADSHEET_ID
+          valueFrom:
+            secretKeyRef:
+              name: running-proxy-secrets
+              key: spreadsheet-id
+        - name: GOOGLE_SERVICE_ACCOUNT_FILE
+          value: /secrets/google/service-account.json
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: google-service-account
+          mountPath: /secrets/google
+          readOnly: true
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: running-proxy-data
+      - name: google-service-account
+        secret:
+          secretName: google-service-account-json
+          items:
+          - key: service-account.json
+            path: service-account.json
