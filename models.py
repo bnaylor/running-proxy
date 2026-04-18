@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict
 from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Float, Integer, JSON
@@ -24,60 +24,88 @@ class WorkoutRecord(Base):
 
 # --- Pydantic Models for Webhook ---
 
-class WorkoutMetadata(BaseModel):
-    HKTimeZone: Optional[str] = None
-    HKWeatherTemperature: Optional[str] = None
-    HKWeatherHumidity: Optional[str] = None
-    HKIndoorWorkout: Optional[int] = None
-    HKAverageHeartRate: Optional[str] = None
-    HKHeartRateRecoveryOneMinute: Optional[str] = None
+class BaseHaeModel(BaseModel):
+    model_config = ConfigDict(extra='allow', protected_namespaces=())
 
-class WorkoutMetricData(BaseModel):
+class QuantityValue(BaseHaeModel):
+    qty: Optional[float] = None
+    units: Optional[str] = None
+
+class DatedQuantityValue(BaseHaeModel):
+    qty: Optional[float] = None
+    units: Optional[str] = None
     date: str
-    value: float
+    source: Optional[str] = None
 
-class WorkoutMetric(BaseModel):
-    name: str
-    units: str
-    data: List[WorkoutMetricData]
+class MetricDataPoint(BaseHaeModel):
+    qty: Optional[float] = None
+    date: str
+    source: Optional[str] = None
+    units: Optional[str] = None
 
-class WorkoutRoutePoint(BaseModel):
-    lat: float
-    lon: float
+class HeartRateDataPoint(BaseHaeModel):
+    Avg: Optional[float] = None
+    Min: Optional[float] = None
+    Max: Optional[float] = None
+    date: str
+    units: Optional[str] = None
+    source: Optional[str] = None
+
+class HeartRateSummary(BaseHaeModel):
+    min: Optional[QuantityValue] = None
+    avg: Optional[QuantityValue] = None
+    max: Optional[QuantityValue] = None
+
+class WorkoutRoutePoint(BaseHaeModel):
+    latitude: float
+    longitude: float
     altitude: float
     timestamp: str
     speed: float
+    course: Optional[float] = None
+    horizontalAccuracy: Optional[float] = None
+    verticalAccuracy: Optional[float] = None
 
-class WorkoutEvent(BaseModel):
-    type: str
-    date: str
-    duration: Optional[float] = None
-    distance: Optional[float] = None
-    metadata: Optional[Dict] = None
-
-class Workout(BaseModel):
-    id: str = Field(..., alias="id") # UUID
+class Workout(BaseHaeModel):
+    id: str = Field(..., alias="id")
     name: str
     start: str
     end: str
     duration: float
-    durationUnit: str
-    totalDistance: float
-    distanceUnit: str
-    totalEnergyBurned: float
-    energyBurnedUnit: str
-    sourceName: str
-    sourceVersion: str
-    device: str
-    metadata: Optional[WorkoutMetadata] = None
-    metrics: Optional[List[WorkoutMetric]] = None
+    location: Optional[str] = None
+    isIndoor: Optional[bool] = None
+    
+    # Nested Objects
+    distance: Optional[QuantityValue] = None
+    avgHeartRate: Optional[QuantityValue] = None
+    maxHeartRate: Optional[QuantityValue] = None
+    temperature: Optional[QuantityValue] = None
+    humidity: Optional[QuantityValue] = None
+    activeEnergyBurned: Optional[QuantityValue] = None
+    stepCadence: Optional[QuantityValue] = None
+    elevationUp: Optional[QuantityValue] = None
+    
+    # Summaries
+    heartRate: Optional[HeartRateSummary] = None
+    
+    # Time Series
+    heartRateData: Optional[List[HeartRateDataPoint]] = []
+    heartRateRecovery: Optional[List[HeartRateDataPoint]] = []
+    stepCount: Optional[List[MetricDataPoint]] = []
+    activeEnergy: Optional[List[MetricDataPoint]] = []
+    walkingAndRunningDistance: Optional[List[MetricDataPoint]] = []
+    
     route: Optional[List[WorkoutRoutePoint]] = None
-    workoutEvents: Optional[List[WorkoutEvent]] = None
+    metadata: Optional[Dict] = {}
 
-class WebhookPayloadData(BaseModel):
+class Metric(BaseHaeModel):
+    name: str
+    units: Optional[str] = None
+    data: List[MetricDataPoint]
+
+class WebhookPayloadData(BaseHaeModel):
     workouts: List[Workout] = []
-    # Could also have metrics, etc. at top level but we focus on workouts
+    metrics: List[Metric] = []
 
-class WebhookPayload(BaseModel):
+class WebhookPayload(BaseHaeModel):
     data: WebhookPayloadData
-    metadata: Dict
