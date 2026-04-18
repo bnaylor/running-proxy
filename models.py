@@ -84,6 +84,7 @@ class Workout(BaseHaeModel):
     activeEnergyBurned: Optional[QuantityValue] = None
     stepCadence: Optional[QuantityValue] = None
     elevationUp: Optional[QuantityValue] = None
+    intensity: Optional[QuantityValue] = None  # kcal/hr·kg, used for AWL effort label
     
     # Summaries
     heartRate: Optional[HeartRateSummary] = None
