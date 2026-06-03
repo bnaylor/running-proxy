@@ -2,6 +2,7 @@ import os
 import json
 import re
 import logging
+import traceback
 from typing import List
 from contextlib import asynccontextmanager
 
@@ -164,7 +165,7 @@ def process_workout_bg(workout: Workout, all_metrics: List[Metric]):
     try:
         process_workout(workout, all_metrics, db)
     except Exception as e:
-        logger.error(f"Error processing workout {workout.id}: {e}")
+        logger.error(f"Error processing workout {workout.id}: {e}\n{traceback.format_exc()}")
     finally:
         db.close()
 
@@ -211,7 +212,7 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
     # Health Auto Export sometimes embeds raw control characters in string fields
     # (workoutName, notes, route metadata, etc.). Python's json.loads() rejects
     # these, so strip all control chars (0x00-0x1F) before parsing.
-    cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
+    cleaned = re.sub(r"[\x00-\x1f]", "", text)
     try:
         payload_data = json.loads(cleaned)
     except Exception as e:
