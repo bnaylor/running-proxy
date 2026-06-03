@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+docker build --platform linux/amd64 -t bnaylor/running-proxy:latest .
+docker push bnaylor/running-proxy:latest
+
