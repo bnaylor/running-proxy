@@ -31,6 +31,7 @@ from googleapiclient.discovery import build
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./workouts.db")
 GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "/secrets/google/service-account.json")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
+DEBUG = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -165,7 +166,10 @@ def process_workout_bg(workout: Workout, all_metrics: List[Metric]):
     try:
         process_workout(workout, all_metrics, db)
     except Exception as e:
-        logger.error(f"Error processing workout {workout.id}: {e}\n{traceback.format_exc()}")
+        msg = f"Error processing workout {workout.id}: {e}"
+        if DEBUG:
+            msg += f"\n{traceback.format_exc()}"
+        logger.error(msg)
     finally:
         db.close()
 
@@ -209,7 +213,8 @@ app = FastAPI(title="Running Proxy", lifespan=lifespan)
 async def webhook(request: Request, background_tasks: BackgroundTasks):
     raw_body = await request.body()
     text = raw_body.decode("utf-8", errors="replace")
-    logger.info(f"Raw payload hex: {raw_body.hex()}")
+    if DEBUG:
+        logger.info(f"Raw payload hex: {raw_body.hex()}")
     # Health Auto Export sometimes embeds raw control characters in string fields
     # (workoutName, notes, route metadata, etc.). Python's json.loads() rejects
     # these, so strip all control chars (0x00-0x1F) before parsing.
