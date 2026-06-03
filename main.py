@@ -209,6 +209,7 @@ app = FastAPI(title="Running Proxy", lifespan=lifespan)
 async def webhook(request: Request, background_tasks: BackgroundTasks):
     raw_body = await request.body()
     text = raw_body.decode("utf-8", errors="replace")
+    logger.info(f"Raw payload hex: {raw_body.hex()}")
     # Health Auto Export sometimes embeds raw control characters in string fields
     # (workoutName, notes, route metadata, etc.). Python's json.loads() rejects
     # these, so strip all control chars (0x00-0x1F) before parsing.
