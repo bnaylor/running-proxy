@@ -1,4 +1,6 @@
 import os
+import json
+import re
 import logging
 from typing import List
 from contextlib import asynccontextmanager
@@ -204,7 +206,18 @@ app = FastAPI(title="Running Proxy", lifespan=lifespan)
 
 @app.post("/webhook")
 async def webhook(request: Request, background_tasks: BackgroundTasks):
-    payload_data = await request.json()
+    raw_body = await request.body()
+    text = raw_body.decode("utf-8", errors="replace")
+    # Health Auto Export sometimes embeds raw control characters in string fields
+    # (workoutName, notes, route metadata, etc.). Python's json.loads() rejects
+    # these, so strip all control chars (0x00-0x1F) before parsing.
+    cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
+    try:
+        payload_data = json.loads(cleaned)
+    except Exception as e:
+        logger.error(f"JSON parse error even after sanitization: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON payload: {e}")
+
     try:
         payload = WebhookPayload(**payload_data)
     except Exception as e:
