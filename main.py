@@ -31,7 +31,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./workouts.db")
 GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "/secrets/google/service-account.json")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # --- Database Setup ---
@@ -225,11 +225,18 @@ async def webhook(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=422, detail=str(e))
 
     logger.info(f"Received webhook with {len(payload.data.workouts)} workouts and {len(payload.data.metrics)} metrics")
+    ACCEPTED_WORKOUT_TYPES = {"Running", "Outdoor Run", "Outdoor Walk", "Indoor Walk", "Indoor Run"}
+    queued = []
+    rejected = []
     for workout in payload.data.workouts:
-        if workout.name in ["Running", "Outdoor Run"]:
+        if workout.name in ACCEPTED_WORKOUT_TYPES:
             background_tasks.add_task(process_workout_bg, workout, payload.data.metrics)
+            queued.append(workout.name)
+        else:
+            rejected.append(workout.name)
+            logger.info(f"Skipping workout {workout.id}: unsupported type {workout.name!r}")
 
-    return {"status": "ok", "message": "Workouts queued for processing"}
+    return {"status": "ok", "queued": queued, "rejected": rejected}
 
 
 @app.get("/health")
